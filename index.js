@@ -1,32 +1,57 @@
-const puppeteer = require("puppeteer");
+const express = require('express');
+const puppeteer = require('puppeteer');
 
-const url = "https://indianexpress.com/section/sports/";
+const app = express();
+const PORT = 3000;
 
-const main = async () => {
-  console.log("loading browser");
-  const browser = await puppeteer.launch();
-  console.log("loading pages");
-  const page = await browser.newPage();
-  console.log("hitting url");
+// const axios = require("axios");
+const cheerio = require("cheerio");
+const axios =require("axios")
+async function fetchSportsNews() {
+    try {
+        const response = await axios.get("https://indianexpress.com/section/sports/");
+        const html = response.data;
+        const $ = cheerio.load(html);
 
-  await page.goto(url, { waitUntil: 'domcontentloaded' });
-  console.log("page loaded");
+        const articles = [];
+        $(".articles").each((index, element) => {
+            const title = $(element).find(".title").text();
+            const p = $(element).find("p").text();
+            
 
-  // Wait for the first article element to appear on the page
-  await page.waitForSelector('article h2');
+            articles.push({ title,p});
+        });
 
-  const allArticles = await page.evaluate(() => {
-    const articles = document.querySelectorAll('article');
-    return Array.from(articles).slice(0, 3).map((article) => {
-      const title = article.querySelector('img-context').querySelector('h2').innerText;
-      const url = article.querySelector('img-context').querySelector('p').textContent; 
-      return { title, url };
-    });
-  });
+        return articles;
+    } catch (error) {
+        console.error("Error fetching data:", error);
+    }
+}
 
-  console.log(allArticles);
 
-  await browser.close();
-};
 
-main();
+
+
+
+// Set EJS as the templating engine
+app.set('view engine', 'ejs');
+
+// Define a route to render the scraped news
+app.get('/', async (req, res) => {
+  const url = "https://indianexpress.com/section/sports/";
+
+  // Scrape data
+  const articles=await fetchSportsNews();
+ 
+ 
+
+  
+
+  // Render the 'index' template with articles data
+  res.render('index', { articles });
+});
+
+// Start the server
+app.listen(PORT, () => {
+  console.log(`Server is running on http://localhost:${PORT}`);
+});
